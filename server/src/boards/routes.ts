@@ -74,6 +74,15 @@ boardsRouter.patch("/:id", async (req, res) => {
   res.json(await getBoardState(board.id));
 });
 
+boardsRouter.patch("/:id/bot", async (req, res) => {
+  const board = await requireMember(req.params.id, req.userId!);
+  if (!board.isGuestDemo) throw notFound();
+  const { paused } = z.object({ paused: z.boolean() }).parse(req.body);
+  await prisma.board.update({ where: { id: board.id }, data: { botPaused: paused } });
+  publish(board.id, { type: "board:updated", payload: { botPaused: paused } });
+  res.json({ botPaused: paused });
+});
+
 boardsRouter.delete("/:id", async (req, res) => {
   const board = await requireOwner(req.params.id, req.userId!);
   const members = await prisma.boardMember.findMany({ where: { boardId: board.id } });
