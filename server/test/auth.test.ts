@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
+import { createApp } from "../src/app.js";
 import { prisma } from "../src/db.js";
 import { BOT_EMAIL } from "../src/seed/guestBoard.js";
 import { app, auth, guestUser, registerUser } from "./helpers.js";
@@ -69,6 +70,17 @@ describe("auth", () => {
     const res = await request(app).post("/api/auth/guest");
     expect(res.status).toBe(429);
     expect(res.body.error).toBe("Muitas tentativas, tente mais tarde");
+  });
+
+  it("behind a proxy (TRUST_PROXY=1) the login limit is per client IP", async () => {
+    process.env.TRUST_PROXY = "1";
+    const proxied = createApp();
+    delete process.env.TRUST_PROXY;
+    const login = (ip: string) =>
+      request(proxied).post("/api/auth/login").set("X-Forwarded-For", ip).send({ email: "x@test.dev", password: "senha12345" });
+    for (let i = 0; i < 10; i++) await login("1.1.1.1");
+    expect((await login("1.1.1.1")).status).toBe(429);
+    expect((await login("2.2.2.2")).status).toBe(401);
   });
 
   it("11th login within a minute is 429", async () => {

@@ -10,6 +10,8 @@ import { errorHandler } from "./errors.js";
 export function createApp() {
   const app = express();
   app.disable("x-powered-by");
+  // Behind Render's proxy: take the client IP from X-Forwarded-For so rate limits are per visitor.
+  app.set("trust proxy", Number(process.env.TRUST_PROXY ?? 0));
   app.use(cors({ origin: process.env.WEB_ORIGIN ?? "http://localhost:5174" }));
   app.use(express.json({ limit: "1mb" }));
 
