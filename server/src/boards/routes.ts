@@ -2,7 +2,9 @@ import { randomBytes } from "node:crypto";
 import { Router } from "express";
 import { generateNKeysBetween } from "fractional-indexing";
 import { z } from "zod";
+import { createColumn } from "../columns/service.js";
 import { prisma } from "../db.js";
+import { clientMutationId } from "../lib/position.js";
 import { HttpError, notFound } from "../errors.js";
 import { publish, revokeMembership } from "../realtime/bus.js";
 import { DEFAULT_COLUMNS } from "../seed/guestBoard.js";
@@ -52,6 +54,11 @@ boardsRouter.post("/", async (req, res) => {
 boardsRouter.get("/:id", async (req, res) => {
   await requireMember(req.params.id, req.userId!);
   res.json(await getBoardState(req.params.id));
+});
+
+boardsRouter.post("/:id/columns", async (req, res) => {
+  const actor = await actorOf(req.userId!);
+  res.status(201).json(await createColumn(actor, req.params.id, req.body?.name, clientMutationId(req)));
 });
 
 boardsRouter.patch("/:id", async (req, res) => {

@@ -3,6 +3,8 @@ import express from "express";
 import { requireAuth } from "./auth/middleware.js";
 import { authRouter } from "./auth/routes.js";
 import { boardsRouter, invitesRouter } from "./boards/routes.js";
+import { cardsRouter } from "./cards/routes.js";
+import { columnsRouter } from "./columns/routes.js";
 import { errorHandler } from "./errors.js";
 
 export function createApp() {
@@ -19,6 +21,8 @@ export function createApp() {
   api.use("/auth", authRouter);
   api.use("/boards", requireAuth, boardsRouter);
   api.use("/invites", requireAuth, invitesRouter);
+  api.use("/columns", requireAuth, columnsRouter);
+  api.use("/cards", requireAuth, cardsRouter);
 
   app.use("/api", api);
   app.use("/api", (_req, res) => {
