@@ -17,3 +17,6 @@ beforeEach(resetDb);
 
 const { resetRateLimits } = await import("../src/lib/rateLimit.js");
 beforeEach(resetRateLimits);
+
+const { clearRecorded } = await import("../src/realtime/bus.js");
+beforeEach(clearRecorded);

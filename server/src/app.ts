@@ -1,6 +1,8 @@
 import cors from "cors";
 import express from "express";
+import { requireAuth } from "./auth/middleware.js";
 import { authRouter } from "./auth/routes.js";
+import { boardsRouter, invitesRouter } from "./boards/routes.js";
 import { errorHandler } from "./errors.js";
 
 export function createApp() {
@@ -15,6 +17,8 @@ export function createApp() {
   });
 
   api.use("/auth", authRouter);
+  api.use("/boards", requireAuth, boardsRouter);
+  api.use("/invites", requireAuth, invitesRouter);
 
   app.use("/api", api);
   app.use("/api", (_req, res) => {
