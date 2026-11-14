@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Users } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { apiFetch, send } from "../api/client";
 import type { BoardState, BoardSummary } from "../api/types";
 import { AppHeader } from "../components/AppHeader";
@@ -11,6 +11,7 @@ export function BoardsPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [name, setName] = useState("");
+  const toast = (useLocation().state as { toast?: string } | null)?.toast;
   const boards = useQuery({
     queryKey: ["boards"],
     queryFn: () => apiFetch<{ boards: BoardSummary[] }>("/api/boards").then((r) => r.boards),
@@ -31,6 +32,11 @@ export function BoardsPage() {
     <div className="min-h-screen">
       <AppHeader />
       <main className="mx-auto max-w-4xl px-4 py-8">
+        {toast && (
+          <p role="status" className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            {toast}
+          </p>
+        )}
         <PageHeader title="Meus quadros" subtitle="Quadros que você criou ou dos quais participa." />
         <Card className="mb-6">
           <form onSubmit={submit} className="flex gap-2">
