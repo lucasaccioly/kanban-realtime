@@ -12,7 +12,7 @@ import { HttpError, notFound } from "../errors.js";
 import { publish, revokeMembership } from "../realtime/bus.js";
 import { DEFAULT_COLUMNS } from "../seed/guestBoard.js";
 import { requireMember, requireOwner } from "./access.js";
-import { getBoardState, logActivity, publishActivity, type Actor } from "./service.js";
+import { getBoardState, logActivity, publishActivity, toCardDto, type Actor } from "./service.js";
 
 const nameSchema = z.object({ name: z.string().trim().min(1).max(80) });
 
@@ -131,12 +131,18 @@ boardsRouter.delete("/:id/invite", async (req, res) => {
 });
 
 async function removeMember(boardId: string, userId: string, actor: Actor, type: "member.left" | "member.removed", name: string) {
-  const activity = await prisma.$transaction(async (tx) => {
+  const { activity, unassigned } = await prisma.$transaction(async (tx) => {
     await tx.boardMember.delete({ where: { boardId_userId: { boardId, userId } } });
-    return logActivity(tx, boardId, actor, type, { userId, name });
+    // Cards may only be assigned to members: otherwise every later save of these cards would fail validation.
+    const where = { assigneeId: userId, column: { boardId } };
+    const ids = (await tx.card.findMany({ where, select: { id: true } })).map((c) => c.id);
+    await tx.card.updateMany({ where: { id: { in: ids } }, data: { assigneeId: null, version: { increment: 1 } } });
+    const unassigned = await tx.card.findMany({ where: { id: { in: ids } } });
+    return { activity: await logActivity(tx, boardId, actor, type, { userId, name }), unassigned };
   });
   revokeMembership(boardId, userId);
   publish(boardId, { type: "member:left", payload: { userId } });
+  for (const card of unassigned) publish(boardId, { type: "card:updated", payload: toCardDto(card) });
   publishActivity(boardId, activity);
 }
 

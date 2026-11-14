@@ -33,6 +33,19 @@ function AuthForm({ mode }: { mode: "login" | "register" }) {
       setBusy(false);
     }
   };
+  // An invite opened in a fresh window must not force sign-up: guests can join too.
+  const enterAsGuest = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await send<AuthResponse & { boardId: string }>("POST", "/api/auth/guest");
+      signIn(r.token, r.user);
+      navigate(params.get("next") ? next : `/quadros/${r.boardId}`, { replace: true });
+    } catch (err) {
+      setError(err);
+      setBusy(false);
+    }
+  };
   const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value });
   const otherLink = `${isLogin ? "/cadastro" : "/entrar"}${params.get("next") ? `?next=${encodeURIComponent(next)}` : ""}`;
 
@@ -70,6 +83,12 @@ function AuthForm({ mode }: { mode: "login" | "register" }) {
               {busy ? "Aguarde…" : isLogin ? "Entrar" : "Criar conta"}
             </Button>
           </form>
+          <div className="my-4 flex items-center gap-3 text-xs text-slate-400">
+            <span className="h-px flex-1 bg-slate-200" /> ou <span className="h-px flex-1 bg-slate-200" />
+          </div>
+          <Button variant="secondary" className="w-full" disabled={busy || status === "waking"} onClick={enterAsGuest}>
+            Entrar como visitante
+          </Button>
         </Card>
         <p className="text-center text-sm text-slate-600">
           {isLogin ? "Ainda não tem conta? " : "Já tem conta? "}

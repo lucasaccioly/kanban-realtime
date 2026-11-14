@@ -3,6 +3,7 @@ import { Server, type Socket } from "socket.io";
 import { verifyToken } from "../auth/token.js";
 import { requireMember } from "../boards/access.js";
 import { getBoardState } from "../boards/service.js";
+import { HttpError } from "../errors.js";
 import { onMembershipRevoked, setPublisher } from "./bus.js";
 import { addSocket, boardsOfSocket, removeSocket, setFocus, snapshot } from "./presence.js";
 
@@ -35,13 +36,19 @@ export function attachRealtime(httpServer: HttpServer): Server {
       const boardId = typeof msg?.boardId === "string" ? msg.boardId : "";
       try {
         await requireMember(boardId, userId);
-        const state = await getBoardState(boardId);
         socket.join(room(boardId));
         addSocket(boardId, socket.id, userId);
+        // Re-check once in the room: a removal that landed between the first check and the join would
+        // otherwise have found no socket to revoke. Any later removal finds this socket in the room.
+        await requireMember(boardId, userId);
+        const state = await getBoardState(boardId);
         broadcastPresence(boardId); // before the ack, so the joiner sees itself online first
         ack?.({ ok: true, state });
-      } catch {
-        ack?.({ ok: false, error: "Não encontrado" });
+      } catch (e) {
+        leaveBoard(socket, boardId);
+        const notFound = e instanceof HttpError && e.status === 404;
+        if (!notFound) console.error("board:join failed", e);
+        ack?.({ ok: false, error: notFound ? "Não encontrado" : "Erro interno" });
       }
     });
 

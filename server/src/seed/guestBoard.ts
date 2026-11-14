@@ -55,11 +55,19 @@ export async function createGuestDemoBoard(tx: Tx, guestId: string): Promise<str
       })),
     });
   }
+  const at = (secondsAgo: number) => new Date(now - secondsAgo * 1000); // distinct timestamps keep the feed order stable
   await tx.activity.createMany({
     data: [
-      { boardId: board.id, actorId: guestId, actorName: guest.name, type: "board.created", payload: { name: board.name } },
-      { boardId: board.id, actorId: bot.id, actorName: bot.name, type: "member.joined", payload: {} },
-      { boardId: board.id, actorId: bot.id, actorName: bot.name, type: "card.moved", payload: { title: "Configurar CI", to: "Feito" } },
+      { boardId: board.id, actorId: guestId, actorName: guest.name, type: "board.created", payload: { name: board.name }, createdAt: at(2) },
+      { boardId: board.id, actorId: bot.id, actorName: bot.name, type: "member.joined", payload: {}, createdAt: at(1) },
+      {
+        boardId: board.id,
+        actorId: bot.id,
+        actorName: bot.name,
+        type: "card.moved",
+        payload: { title: "Configurar CI", fromColumn: "Fazendo", toColumn: "Feito" },
+        createdAt: at(0),
+      },
     ],
   });
   return board.id;

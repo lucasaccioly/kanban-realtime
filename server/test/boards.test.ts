@@ -109,6 +109,25 @@ describe("boards", () => {
     expect(recordedEvents().some((e) => e.event.type === "member:left")).toBe(true);
   });
 
+  it("a member who leaves or is removed is unassigned from that board's cards", async () => {
+    const ana = await registerUser("Ana");
+    const bob = await registerUser("Bob");
+    const created = await createBoard(ana.token);
+    const boardId = created.board.id;
+    await inviteAndJoin(ana.token, boardId, bob.token);
+    const col = created.columns[0].id;
+    const card = await request(app).post(`/api/columns/${col}/cards`).set(auth(ana.token)).send({ title: "X", assigneeId: bob.user.id });
+    await request(app).post(`/api/boards/${boardId}/leave`).set(auth(bob.token));
+
+    const after = await prisma.card.findUniqueOrThrow({ where: { id: card.body.id } });
+    expect(after).toMatchObject({ assigneeId: null, version: 1 });
+    const ev = recordedEvents().find((e) => e.event.type === "card:updated");
+    expect(ev?.event.payload).toMatchObject({ id: card.body.id, assigneeId: null });
+    // the card stays editable with the full form the modal sends
+    const save = await request(app).patch(`/api/cards/${card.body.id}`).set(auth(ana.token)).send({ title: "Y", assigneeId: null });
+    expect(save.status).toBe(200);
+  });
+
   it("owner deletes the board and board:deleted is published", async () => {
     const ana = await registerUser("Ana");
     const { board } = await createBoard(ana.token);

@@ -7,11 +7,19 @@ const TTL_MS = 24 * 60 * 60 * 1000;
 export async function cleanupGuests(now: Date): Promise<number> {
   const where = { isGuest: true, createdAt: { lt: new Date(now.getTime() - TTL_MS) } };
   const owned = await prisma.board.findMany({ where: { owner: where }, include: { members: true } });
+  const ownedIds = new Set(owned.map((b) => b.id));
+  const elsewhere = (await prisma.boardMember.findMany({ where: { user: where } })).filter((m) => !ownedIds.has(m.boardId));
   const { count } = await prisma.user.deleteMany({ where });
-  // Members of those boards who are online right now see them disappear.
+
+  // Online clients must see the change: their boards vanish for members...
   for (const board of owned) {
     publish(board.id, { type: "board:deleted", payload: { boardId: board.id } });
     for (const m of board.members) revokeMembership(board.id, m.userId);
+  }
+  // ...and they leave other people's boards (sockets out of the room, members see them go).
+  for (const m of elsewhere) {
+    revokeMembership(m.boardId, m.userId);
+    publish(m.boardId, { type: "member:left", payload: { userId: m.userId } });
   }
   return count;
 }

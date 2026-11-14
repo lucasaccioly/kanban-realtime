@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
+import { getBoardState } from "../src/boards/service.js";
 import { prisma } from "../src/db.js";
 import { BOT_EMAIL } from "../src/seed/guestBoard.js";
 import { app, auth, guestUser, registerUser } from "./helpers.js";
@@ -63,6 +64,13 @@ describe("auth", () => {
     expect(board.columns.flatMap((c) => c.cards).length).toBeGreaterThanOrEqual(8);
     expect(board.members.map((m) => m.user.email)).toContain(BOT_EMAIL);
     expect(board.activities.length).toBe(3);
+  });
+
+  it("seeded activity uses the feed's payload shape and a stable newest-first order", async () => {
+    const { boardId } = await guestUser();
+    const { activity } = await getBoardState(boardId);
+    expect(activity.map((a) => a.type)).toEqual(["card.moved", "member.joined", "board.created"]);
+    expect(activity[0].payload).toMatchObject({ title: "Configurar CI", toColumn: "Feito" });
   });
 
   it("6th guest from the same IP within an hour is 429", async () => {

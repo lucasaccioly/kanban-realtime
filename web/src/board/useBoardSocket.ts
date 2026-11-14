@@ -33,13 +33,19 @@ export function useBoardSocket(boardId: string) {
     const socket = io(API_URL, { auth: { token: getToken() }, transports: ["websocket", "polling"] });
     socketRef.current = socket;
 
-    socket.on("connect", async () => {
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    const join = async () => {
       const ack: JoinAck = await socket.emitWithAck("board:join", { boardId });
-      if (!ack.ok) return leave("Quadro não encontrado");
+      if (!ack.ok && ack.error === "Não encontrado") return leave("Quadro não encontrado");
+      if (!ack.ok) {
+        retry = setTimeout(() => socket.connected && void join(), 3000); // transient (e.g. database waking up)
+        return;
+      }
       dispatch({ type: "reset", state: ack.state });
       setLoaded(true);
       setConnection("live");
-    });
+    };
+    socket.on("connect", join);
     socket.on("disconnect", () => setConnection("reconnecting"));
     socket.on("connect_error", (err) => {
       if (err.message === "Não autenticado") signOut();
@@ -53,6 +59,7 @@ export function useBoardSocket(boardId: string) {
     socket.on("board:removed", () => leave(REMOVED_TOAST));
 
     return () => {
+      clearTimeout(retry);
       socket.disconnect();
       socketRef.current = null;
     };

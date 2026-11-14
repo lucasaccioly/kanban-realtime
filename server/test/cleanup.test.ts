@@ -4,7 +4,9 @@ import { getBoardState } from "../src/boards/service.js";
 import { prisma } from "../src/db.js";
 import { cleanupGuests } from "../src/jobs/cleanupGuests.js";
 import { recordedEvents } from "../src/realtime/bus.js";
+import { resetPresence } from "../src/realtime/presence.js";
 import { app, auth, guestUser, registerUser } from "./helpers.js";
+import { closeAll, connect, joinBoard, nextEvent, startTestServer } from "./socketHelpers.js";
 
 const HOUR = 60 * 60 * 1000;
 
@@ -45,5 +47,32 @@ describe("cleanupGuests", () => {
     expect(state.members.map((m) => m.id)).toEqual([r.user.id]);
 
     expect(await prisma.user.findUnique({ where: { id: fresh.user.id } })).not.toBeNull();
+  });
+
+  it("an expired guest online in someone else's board is removed from its room and members see member:left", async () => {
+    const server = await startTestServer();
+    try {
+      const r = await registerUser("Rita");
+      const g = await guestUser();
+      const rb = await request(app).post("/api/boards").set(auth(r.token)).send({ name: "Do R" });
+      const boardId = rb.body.board.id;
+      await join(r.token, boardId, g.token);
+      const rs = await connect(server.url, r.token);
+      const gs = await connect(server.url, g.token);
+      await joinBoard(rs, boardId);
+      await joinBoard(gs, boardId);
+      const removed = nextEvent(gs, "board:removed");
+      const left = nextEvent(rs, "member:left");
+
+      await prisma.user.update({ where: { id: g.user.id }, data: { createdAt: new Date(Date.now() - 25 * HOUR) } });
+      await cleanupGuests(new Date());
+
+      expect(await removed).toEqual({ boardId });
+      expect(await left).toMatchObject({ userId: g.user.id });
+    } finally {
+      closeAll();
+      resetPresence();
+      await server.close();
+    }
   });
 });
