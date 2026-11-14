@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String?  @unique
+  passwordHash String?
+  isGuest      Boolean  @default(false)
+  isBot        Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  ownedBoards Board[]       @relation("BoardOwner")
+  memberships BoardMember[]
+  assigned    Card[]        @relation("CardAssignee")
+  activities  Activity[]
+}
+
+model Board {
+  id          String   @id @default(uuid())
+  name        String
+  ownerId     String
+  owner       User     @relation("BoardOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  inviteToken String?  @unique
+  isGuestDemo Boolean  @default(false)
+  botPaused   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  members    BoardMember[]
+  columns    Column[]
+  activities Activity[]
+}
+
+model BoardMember {
+  boardId  String
+  userId   String
+  board    Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt DateTime @default(now())
+
+  @@id([boardId, userId])
+}
+
+model Column {
+  id       String @id @default(uuid())
+  boardId  String
+  board    Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  name     String
+  position String
+  cards    Card[]
+
+  @@index([boardId])
+}
+
+model Card {
+  id          String    @id @default(uuid())
+  columnId    String
+  column      Column    @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  title       String
+  description String    @default("")
+  assigneeId  String?
+  assignee    User?     @relation("CardAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  dueDate     DateTime? @db.Date
+  labels      String[]
+  position    String
+  version     Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([columnId])
+}
+
+model Activity {
+  id        String   @id @default(uuid())
+  boardId   String
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actorName String
+  type      String
+  payload   Json
+  createdAt DateTime @default(now())
+
+  @@index([boardId, createdAt])
+}
+
+model AiUsage {
+  day   DateTime @db.Date
+  scope String
+  count Int      @default(0)
+
+  @@id([day, scope])
+}

@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+*.log
+.superpowers/
+server/.pgdata/
+server/src/generated/
+.vercel
