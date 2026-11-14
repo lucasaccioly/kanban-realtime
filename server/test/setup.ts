@@ -14,3 +14,6 @@ export async function resetDb() {
 }
 
 beforeEach(resetDb);
+
+const { resetRateLimits } = await import("../src/lib/rateLimit.js");
+beforeEach(resetRateLimits);

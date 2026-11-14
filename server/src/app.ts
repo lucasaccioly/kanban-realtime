@@ -1,5 +1,6 @@
 import cors from "cors";
 import express from "express";
+import { authRouter } from "./auth/routes.js";
 import { errorHandler } from "./errors.js";
 
 export function createApp() {
@@ -12,6 +13,8 @@ export function createApp() {
   api.get("/health", (_req, res) => {
     res.json({ ok: true });
   });
+
+  api.use("/auth", authRouter);
 
   app.use("/api", api);
   app.use("/api", (_req, res) => {
