@@ -130,7 +130,7 @@ No site, `VITE_API_URL` aponta para a API (padrão `http://localhost:3002`).
 npm test
 ```
 
-São 77 testes. No servidor, Vitest, supertest e socket.io-client rodam contra Postgres real e cobrem:
+São 80 testes. No servidor, Vitest, supertest e socket.io-client rodam contra Postgres real e cobrem:
 
 - Autenticação e limites de requisição.
 - Permissões (404 e 403).
