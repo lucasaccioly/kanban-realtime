@@ -23,7 +23,8 @@ export async function groqChat(messages: ChatMessage[]): Promise<string> {
   });
   if (!res.ok) throw new Error(`Groq responded ${res.status}`);
   const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-  const text = body.choices?.[0]?.message?.content?.trim();
+  // the panel renders plain text, so drop markdown bold and heading marks the model tends to add
+  const text = body.choices?.[0]?.message?.content?.replace(/\*\*|^#+\s*/gm, "").trim();
   if (!text) throw new Error("Groq returned no content");
   return text;
 }

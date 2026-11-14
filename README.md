@@ -13,7 +13,7 @@ Quadro Kanban colaborativo: arraste um cartão e ele se move na tela de todo mun
 
 ## 🚀 Demo
 
-**Site:** _link publicado em breve_
+**Site:** https://flowboard-indol-pi.vercel.app
 
 1. Clique em **Entrar como visitante**: você ganha um quadro de exemplo, sem cadastro.
 2. A **Bia (bot)**, uma colega virtual, mexe no quadro a cada ~20 s enquanto você está nele. Assim dá para ver o tempo real funcionando mesmo sozinho.
@@ -130,7 +130,7 @@ No site, `VITE_API_URL` aponta para a API (padrão `http://localhost:3002`).
 npm test
 ```
 
-São 80 testes. No servidor, Vitest, supertest e socket.io-client rodam contra Postgres real e cobrem:
+São 81 testes. No servidor, Vitest, supertest e socket.io-client rodam contra Postgres real e cobrem:
 
 - Autenticação e limites de requisição.
 - Permissões (404 e 403).

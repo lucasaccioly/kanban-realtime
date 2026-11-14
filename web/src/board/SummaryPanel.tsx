@@ -29,7 +29,7 @@ export function SummaryPanel({ boardId }: { boardId: string }) {
         {error && <p className="mt-3 text-sm text-amber-800">{error}</p>}
         {summary && <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-slate-700">{summary}</p>}
       </div>
-      <p className="mt-2 text-[11px] text-slate-400">Gerado por IA (Llama via Groq). Até 5 resumos por dia.</p>
+      <p className="mt-2 text-[11px] text-slate-400">Gerado por IA (gpt-oss via Groq). Até 5 resumos por dia.</p>
     </section>
   );
 }

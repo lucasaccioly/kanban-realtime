@@ -49,6 +49,13 @@ describe("AI summary", () => {
     });
   });
 
+  it("strips markdown bold and headings, since the panel shows plain text", async () => {
+    stubGroq(200, "## Progresso\n**Riscos**: nenhum\n- item");
+    const g = await guestUser();
+    const res = await summarize(g.token, g.boardId);
+    expect(res.body).toEqual({ summary: "Progresso\nRiscos: nenhum\n- item" });
+  });
+
   it("6th summary of the same user on the same day is 429", async () => {
     stubGroq();
     const g = await guestUser();
