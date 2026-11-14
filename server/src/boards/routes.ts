@@ -78,10 +78,11 @@ boardsRouter.patch("/:id", async (req, res) => {
 });
 
 const AI_UNAVAILABLE = "Resumo indisponível agora (limite diário atingido), tente amanhã";
+const AI_FAILED = "Resumo indisponível agora, tente de novo em alguns minutos";
 
 boardsRouter.post("/:id/summary", async (req, res) => {
   await requireMember(req.params.id, req.userId!);
-  if (!process.env.GROQ_API_KEY) throw new HttpError(503, AI_UNAVAILABLE);
+  if (!process.env.GROQ_API_KEY) throw new HttpError(503, AI_FAILED);
   const now = new Date();
   const day = utcDay(now);
   if (!(await tryConsume(req.userId!, day))) throw new HttpError(429, AI_UNAVAILABLE);
@@ -95,7 +96,7 @@ boardsRouter.post("/:id/summary", async (req, res) => {
   } catch (e) {
     await refund(req.userId!, day);
     console.error("summary failed", e);
-    throw new HttpError(503, AI_UNAVAILABLE);
+    throw new HttpError(503, AI_FAILED);
   }
 });
 

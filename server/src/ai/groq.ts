@@ -1,6 +1,6 @@
 // Groq's OpenAI-compatible API, called with plain fetch (no SDK). The key never leaves the server.
 const URL = "https://api.groq.com/openai/v1/chat/completions";
-const DEFAULT_MODEL = "llama-3.1-8b-instant"; // small, fast Llama on Groq's free tier
+const DEFAULT_MODEL = "openai/gpt-oss-20b"; // Groq's suggested replacement after llama-3.1-8b-instant was retired (Aug 2026)
 
 export type ChatMessage = { role: "system" | "user"; content: string };
 
@@ -10,7 +10,15 @@ export async function groqChat(messages: ChatMessage[]): Promise<string> {
   const res = await fetch(URL, {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: process.env.GROQ_MODEL ?? DEFAULT_MODEL, messages, max_tokens: 400, temperature: 0.4 }),
+    body: JSON.stringify({
+      model: process.env.GROQ_MODEL ?? DEFAULT_MODEL,
+      messages,
+      // reasoning tokens count against the cap: low effort, trace hidden
+      reasoning_effort: "low",
+      include_reasoning: false,
+      max_completion_tokens: 1024,
+      temperature: 0.4,
+    }),
     signal: AbortSignal.timeout(15_000),
   });
   if (!res.ok) throw new Error(`Groq responded ${res.status}`);

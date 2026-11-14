@@ -6,6 +6,7 @@ import { prisma } from "../src/db.js";
 import { app, auth, guestUser, registerUser } from "./helpers.js";
 
 const UNAVAILABLE = "Resumo indisponível agora (limite diário atingido), tente amanhã";
+const FAILED = "Resumo indisponível agora, tente de novo em alguns minutos";
 
 function stubGroq(status = 200, content = "Resumo do quadro") {
   const fetchMock = vi.fn(async (_url: string | URL | Request, _init?: RequestInit) =>
@@ -39,7 +40,13 @@ describe("AI summary", () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toBe("https://api.groq.com/openai/v1/chat/completions");
     expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer test-key");
-    expect(JSON.parse(String(init?.body))).toMatchObject({ max_tokens: 400 });
+    // gpt-oss is a reasoning model: reasoning tokens count against the cap, so keep effort low and hide the trace
+    expect(JSON.parse(String(init?.body))).toMatchObject({
+      model: "openai/gpt-oss-20b",
+      reasoning_effort: "low",
+      include_reasoning: false,
+      max_completion_tokens: 1024,
+    });
   });
 
   it("6th summary of the same user on the same day is 429", async () => {
@@ -69,7 +76,7 @@ describe("AI summary", () => {
     const g = await guestUser();
     const res = await summarize(g.token, g.boardId);
     expect(res.status).toBe(503);
-    expect(res.body.error).toBe(UNAVAILABLE);
+    expect(res.body.error).toBe(FAILED);
     expect((await usage()).every((u) => u.count === 0)).toBe(true);
   });
 
@@ -79,7 +86,7 @@ describe("AI summary", () => {
     const g = await guestUser();
     const res = await summarize(g.token, g.boardId);
     expect(res.status).toBe(503);
-    expect(res.body.error).toBe(UNAVAILABLE);
+    expect(res.body.error).toBe(FAILED);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
