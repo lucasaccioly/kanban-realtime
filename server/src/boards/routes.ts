@@ -2,6 +2,9 @@ import { randomBytes } from "node:crypto";
 import { Router } from "express";
 import { generateNKeysBetween } from "fractional-indexing";
 import { z } from "zod";
+import { groqChat } from "../ai/groq.js";
+import { refund, tryConsume, utcDay } from "../ai/quota.js";
+import { buildSummaryPrompt } from "../ai/summary.js";
 import { createColumn } from "../columns/service.js";
 import { prisma } from "../db.js";
 import { clientMutationId } from "../lib/position.js";
@@ -72,6 +75,28 @@ boardsRouter.patch("/:id", async (req, res) => {
   publish(board.id, { type: "board:updated", payload: { name } });
   publishActivity(board.id, activity);
   res.json(await getBoardState(board.id));
+});
+
+const AI_UNAVAILABLE = "Resumo indisponível agora (limite diário atingido), tente amanhã";
+
+boardsRouter.post("/:id/summary", async (req, res) => {
+  await requireMember(req.params.id, req.userId!);
+  if (!process.env.GROQ_API_KEY) throw new HttpError(503, AI_UNAVAILABLE);
+  const now = new Date();
+  const day = utcDay(now);
+  if (!(await tryConsume(req.userId!, day))) throw new HttpError(429, AI_UNAVAILABLE);
+  try {
+    const prompt = buildSummaryPrompt(await getBoardState(req.params.id), now);
+    const summary = await groqChat([
+      { role: "system", content: "Você é um assistente que resume quadros Kanban de forma objetiva." },
+      { role: "user", content: prompt },
+    ]);
+    res.json({ summary });
+  } catch (e) {
+    await refund(req.userId!, day);
+    console.error("summary failed", e);
+    throw new HttpError(503, AI_UNAVAILABLE);
+  }
 });
 
 boardsRouter.patch("/:id/bot", async (req, res) => {
